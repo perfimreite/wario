@@ -1,6 +1,7 @@
 import pygame as pg
 import sys
 import time
+import math
 from pygame.surface import Surface
 
 WINDOW_WIDTH: int = 1920
@@ -11,7 +12,7 @@ FPS: int = 60
 
 class Star:
     def __init__(self, x: int, y: int):
-        self.pos: VECTOR2 = pg.Vector2(x, y)
+        self.pos: Vector2 = pg.Vector2(x, y)
 
     def draw(self, w: Surface):
         x = self.pos.x
@@ -37,9 +38,10 @@ class Star:
 class Coin:
     def __init__(self, x: int, y: int):
         self.pos: Vector2 = pg.Vector2((x, y))
+        self.radius: int = 24
 
     def draw(self, w: Surface):
-        pg.draw.circle(w, "gold", (self.pos.x, self.pos.y), 24)
+        pg.draw.circle(w, "gold", (self.pos.x, self.pos.y), self.radius)
         pg.draw.circle(w, "yellow", (self.pos.x, self.pos.y), 16)
         pg.draw.rect(w, "gold2", (self.pos.x -4, self.pos.y - 12, 8, 24))
 
@@ -76,10 +78,10 @@ class Player:
         self.glove_color: str = "white"
         self.pos: Vector2 = pg.Vector2((100, GROUND_LEVEL - self.height))
         self.jumping: bool = False
-        self.start_jump_time: float or None = None
+        self.start_jump_time: float = 0.0
         self.jump_height: int = 128
-        self.peak_jump_time: int = 0.5
-        self.velocity: int = 100
+        self.peak_jump_time: int = 0.4
+        self.velocity: int = 250
 
     def jump(self):
         elapsed_time: float = time.time() - self.start_jump_time
@@ -91,8 +93,11 @@ class Player:
             self.pos.y = GROUND_LEVEL - self.height
             self.jumping = False
 
-    def move(self, key):
-        pass
+    def move(self, keys, dt):
+        if keys[pg.K_a] and self.pos.x > 0:
+            self.pos.x -= self.velocity * dt
+        elif keys[pg.K_d] and self.pos.x < WINDOW_WIDTH - self.width:
+            self.pos.x += self.velocity * dt
 
     def draw(self, w: Surface, font):
         # draw main body
@@ -127,42 +132,67 @@ class Player:
         hat_rect.center = self.pos.x + self.width / 2, self.pos.y - 42 
         window.blit(hat_widget, hat_rect)
 
-def collision(obj1, obj2) -> bool:
+def collision_rects(obj1, obj2) -> bool:
+    # TODO: find collision between two rects
+    pass
+
+def collision_rect_circle(obj1, obj2):
     x = math.floor(obj1.pos.x)
     y = math.floor(obj1.pos.y)
-    closest_x = max(obj2.pos.x, min(x, obj2.pos.x + obj2.width))
-    closest_y = max(obj2.pos.y, min(y, obj2.pos.y + obj2.height))
+    closest_x = max(obj2.pos.x, min(x, obj2.pos.x + obj2.radius * 2))
+    closest_y = max(obj2.pos.y, min(y, obj2.pos.y + obj2.radius * 2))
     distance = math.sqrt((closest_x - x) ** 2 + (closest_y - y) ** 2)
-    return distance <= self.radius
+    return distance <= obj2.radius
 
 def draw_ground(w: Surface):
     pg.draw.rect(w, "green", (0, GROUND_LEVEL, WINDOW_WIDTH, GRASS_THICCNESS))
     pg.draw.rect(w, "burlywood4", (0, GROUND_LEVEL + GRASS_THICCNESS, WINDOW_WIDTH, GROUND_LEVEL - GRASS_THICCNESS))
 
+def draw_stats(w: Surface, coin_count: int, star_count: int):
+    coin: Coin = Coin(100, 100)
+    coin.draw(w)
+    coin_count_widget: Surface = font.render(f": {coin_count}", True, "white", "aqua")
+    coin_count_rect: Rect = coin_count_widget.get_rect()
+    coin_count_rect.center: list[int] = 150, 100
+    window.blit(coin_count_widget, coin_count_rect)
+    
+    star: Star = Star(100, 145)
+    star.draw(w)
+    star_count_widget: Surface = font.render(f": {star_count}", True, "white", "aqua")
+    star_count_rect: Rect = star_count_widget.get_rect()
+    star_count_rect.center: list[int] = 150, 180
+    window.blit(star_count_widget, star_count_rect)
+
 def draw_time(w: Surface, start_time: float):
-    elapsed_time             = time.time() - start_time
-    elapsed_time_widget      = font.render(f"{round(elapsed_time, 1)}", True, "white", "aqua")
-    elapsed_time_rect        = elapsed_time_widget.get_rect()
+    elapsed_time = time.time() - start_time
+    elapsed_time_widget = font.render(f"{round(elapsed_time, 1)}", True, "white", "aqua")
+    elapsed_time_rect = elapsed_time_widget.get_rect()
     elapsed_time_rect.center = WINDOW_WIDTH - 100, 100
     window.blit(elapsed_time_widget, elapsed_time_rect)
 
 if __name__ == "__main__":
     player: Player = Player()
     start_time = time.time()
+    coin_count: int = 0
+    star_count: int = 0
+    dt: int = 0
 
     pg.init()
     window = pg.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pg.display.set_caption("WARIO")
     font = pg.font.Font("freesansbold.ttf", 32)
     font_small = pg.font.Font("freesansbold.ttf", 16)
+    clock = pg.time.Clock()
    
     # Level `#1`
     coin1: Coin = Coin(550,  700- 24)
     coin2: Coin = Coin(850, 600 - 24)
     coin3: Coin = Coin(1150, 500 - 24)
     coins: list[Coin] = [coin1, coin2, coin3]
+
     star: Star = Star(1350, 440)
     stars: list[Star] = [star]
+
     platform1: Platform = Platform(400, 700, 300, 20)
     platform2: Platform = Platform(700, 600, 300, 20)
     platform3: Platform = Platform(1000, 500, 500, 20)
@@ -182,12 +212,30 @@ if __name__ == "__main__":
 
         window.fill("aqua")
         draw_ground(window)
+        draw_stats(window, coin_count, star_count)
         draw_time(window, start_time)
 
+        for i, coin in enumerate(coins):
+            if collision_rect_circle(player, coin):
+                coins.pop(i)
+                coin_count += 1
+        
+        for i, star in enumerate(stars):
+            pass
+            # TODO: rect/circle collision is not functional with a star
+            # if collision_rect_circle(player, star):
+            #     star.pop(i)
+            #     star_count += 1
+        
+        # TODO: must be able jump onto platforms 
         if player.jumping:
             player.jump()
+
+        player.move(pg.key.get_pressed(), dt)
             
         player.draw(window, font_small)
         level.draw(window)
+
+        dt = clock.tick(FPS) / 1000
 
         pg.display.flip()
