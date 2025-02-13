@@ -9,10 +9,6 @@ GROUND_LEVEL: int = WINDOW_HEIGHT - 320
 GRASS_THICCNESS: int = 32
 FPS: int = 60
 
-class Game:
-    def __init__(self):
-        pass
-
 class Star:
     def __init__(self, x: int, y: int):
         self.pos: VECTOR2 = pg.Vector2(x, y)
@@ -20,6 +16,7 @@ class Star:
     def draw(self, w: Surface):
         x = self.pos.x
         y = self.pos.y
+
         a: Vector2 = pg.Vector2((x, y))
         b: Vector2 = pg.Vector2((x + 12, y + 20))
         c: Vector2 = pg.Vector2((x + 32, y + 20))
@@ -30,17 +27,8 @@ class Star:
         h: Vector2 = pg.Vector2((x - 16, y + 36))
         i: Vector2 = pg.Vector2((x - 32, y + 20))
         j: Vector2 = pg.Vector2((x - 12, y + 20))
-        pg.draw.polygon(w, "yellow", (a,
-                                      b,
-                                      c,
-                                      d,
-                                      e,
-                                      f,
-                                      g,
-                                      h,
-                                      i,
-                                      j,)
-                        )
+
+        pg.draw.polygon(w, "yellow", (a, b, c, d, e, f, g, h, i, j))
         pg.draw.rect(w, "black", (self.pos.x - 8, self.pos.y + 22, 6, 12))
         pg.draw.rect(w, "black", (self.pos.x + 2, self.pos.y + 22, 6, 12))
         pg.draw.rect(w, "white", (self.pos.x - 6, self.pos.y + 24, 2, 4))
@@ -55,10 +43,29 @@ class Coin:
         pg.draw.circle(w, "yellow", (self.pos.x, self.pos.y), 16)
         pg.draw.rect(w, "gold2", (self.pos.x -4, self.pos.y - 12, 8, 24))
 
+class Platform:
+    def __init__(self, x: int, y: int, width: int, height: int):
+        self.color: str = "gray"
+        self.pos: Vector2 = pg.Vector2(x, y)
+        self.width: int = width
+        self.height: int = height
+
+    def draw(self, w):
+        pg.draw.rect(w, self.color, (self.pos.x, self.pos.y, self.width, self.height))
+
 class Level:
-    def __init__(self, coins: list[Coin], stars: list[Star]):
+    def __init__(self, coins: list[Coin], stars: list[Star], platforms: list[Platform]):
         self.coins: list[Coin] = coins 
         self.stars: list[Star] = stars 
+        self.platforms: list[Platform] = platforms
+
+    def draw(self, w: Surface):
+        for c in self.coins:
+            c.draw(w)
+        for s in self.stars:
+            s.draw(w)
+        for p in self.platforms:
+            p.draw(w)
 
 class Player:
     def __init__(self):
@@ -67,7 +74,7 @@ class Player:
         self.primary_color: str = "purple"
         self.secondary_color: str = "yellow"
         self.glove_color: str = "white"
-        self.pos: Vector2 = pg.Vector2((WINDOW_WIDTH / 2 - self.width, GROUND_LEVEL - self.height))
+        self.pos: Vector2 = pg.Vector2((100, GROUND_LEVEL - self.height))
         self.jumping: bool = False
         self.start_jump_time: float or None = None
         self.jump_height: int = 128
@@ -140,7 +147,6 @@ def draw_time(w: Surface, start_time: float):
     window.blit(elapsed_time_widget, elapsed_time_rect)
 
 if __name__ == "__main__":
-    game: Game = Game()
     player: Player = Player()
     start_time = time.time()
 
@@ -149,9 +155,20 @@ if __name__ == "__main__":
     pg.display.set_caption("WARIO")
     font = pg.font.Font("freesansbold.ttf", 32)
     font_small = pg.font.Font("freesansbold.ttf", 16)
+   
+    # Level `#1`
+    coin1: Coin = Coin(550,  700- 24)
+    coin2: Coin = Coin(850, 600 - 24)
+    coin3: Coin = Coin(1150, 500 - 24)
+    coins: list[Coin] = [coin1, coin2, coin3]
+    star: Star = Star(1350, 440)
+    stars: list[Star] = [star]
+    platform1: Platform = Platform(400, 700, 300, 20)
+    platform2: Platform = Platform(700, 600, 300, 20)
+    platform3: Platform = Platform(1000, 500, 500, 20)
+    platforms: list[Platform] = [platform1, platform2, platform3]
 
-    star: Star = Star(100, 100)
-    coin: Coin = Coin(300, 300)
+    level: Level = Level(coins, stars, platforms)
 
     while True:
         for event in pg.event.get():
@@ -171,7 +188,6 @@ if __name__ == "__main__":
             player.jump()
             
         player.draw(window, font_small)
-        star.draw(window)
-        coin.draw(window)
+        level.draw(window)
 
         pg.display.flip()
